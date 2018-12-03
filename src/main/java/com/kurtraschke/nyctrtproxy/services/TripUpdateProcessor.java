@@ -321,18 +321,21 @@ public class TripUpdateProcessor {
               // ignore ADDED trips without stops
               if (tub.getStopTimeUpdateCount() == 0)
                 continue;
-              // Trip Headsign
+              // Trip Headsign and direction
               String stopId = result.getRtLastStop();
               String tripHeadsign = _tripActivator.getStopNameForId(stopId);
+              String nsDirection = NyctTripId.buildFromTripDescriptor(tub.getTrip(), _routesWithReverseRTDirections).getDirection();
+              String tripDirection = "S".equals(nsDirection) ? "1" : "0";
+              GtfsRealtimeOneBusAway.OneBusAwayTripUpdate.Builder obaTripUpdate =
+                      GtfsRealtimeOneBusAway.OneBusAwayTripUpdate.newBuilder();
               if(StringUtils.isNotBlank(tripHeadsign)) {
-                GtfsRealtimeOneBusAway.OneBusAwayTripUpdate obaTripUpdate = GtfsRealtimeOneBusAway.OneBusAwayTripUpdate
-                        .newBuilder().setTripHeadsign(tripHeadsign).build();
-                tub.setExtension(GtfsRealtimeOneBusAway.obaTripUpdate, obaTripUpdate);
-
+                obaTripUpdate.setTripHeadsign(tripHeadsign);
                 //Stop Headsign
                 if(_directionsService !=null)
                   _directionsService.fillStopHeadSigns(tub.getStopTimeUpdateBuilderList());
               }
+              obaTripUpdate.setTripDirection(tripDirection);
+              tub.setExtension(GtfsRealtimeOneBusAway.obaTripUpdate, obaTripUpdate.build());
             }
             tub.setTimestamp(timestamp);
             TripUpdate tripUpdate = tub.build();
