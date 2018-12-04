@@ -3,7 +3,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.kurtraschke</groupId>
   <artifactId>nyct-rt-proxy</artifactId>
-  <version>1.0.8-SNAPSHOT</version>
+  <version>1.0.8</version>
   <packaging>jar</packaging>
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -108,7 +108,7 @@
     <dependency>
       <groupId>org.onebusaway</groupId>
       <artifactId>onebusaway-gtfs-realtime-api</artifactId>
-      <version>1.2.10-SNAPSHOT</version>
+      <version>1.2.10</version>
     </dependency>
     <dependency>
       <groupId>org.apache.httpcomponents</groupId>
@@ -251,7 +251,7 @@
     <connection>scm:git:git@github.com:camsys/nyct-rt-proxy.git</connection>
     <developerConnection>scm:git:git@github.com:camsys/nyct-rt-proxy.git</developerConnection>
     <url>scm:git:git@github.com:camsys/nyct-rt-proxy</url>
-    <tag>HEAD</tag>
+    <tag>nyct-rt-proxy-1.0.8</tag>
   </scm>
 
   <issueManagement>
