@@ -31,6 +31,7 @@ import com.google.transit.realtime.GtfsRealtime.TripUpdate.StopTimeUpdate;
 import com.google.transit.realtime.GtfsRealtimeNYCT;
 import com.google.transit.realtime.GtfsRealtimeOneBusAway;
 import com.kurtraschke.nyctrtproxy.model.*;
+import com.kurtraschke.nyctrtproxy.transform.StopFilterStrategy;
 import com.kurtraschke.nyctrtproxy.transform.StopIdTransformStrategy;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
@@ -76,6 +77,8 @@ public class TripUpdateProcessor {
   private TripMatcher _tripMatcher;
 
   private TripActivator _tripActivator;
+
+  private StopFilterStrategy _stopFilterStrategy;
 
   private boolean _cancelUnmatchedTrips = true;
 
@@ -147,6 +150,11 @@ public class TripUpdateProcessor {
   @Inject
   public void setTripMatcher(TripMatcher tm) {
     _tripMatcher = tm;
+  }
+
+  @Inject(optional =  true)
+  public void setStopFilterStrategy(StopFilterStrategy stopFilterStrategy) {
+    _stopFilterStrategy = stopFilterStrategy;
   }
 
   @Inject(optional = true)
@@ -410,7 +418,9 @@ public class TripUpdateProcessor {
   private void removeTimepoints(TripUpdate.Builder tripUpdate) {
     for(int i = 0; i < tripUpdate.getStopTimeUpdateCount(); i++) {
       String id = tripUpdate.getStopTimeUpdate(i).getStopId();
-      if (!_tripActivator.isStopInStaticData(id)) {
+      String routeId = tripUpdate.getTrip().getRouteId();
+      if (!_tripActivator.isStopInStaticData(id)
+              || (_stopFilterStrategy != null && !_stopFilterStrategy.shouldInclude(routeId, id))) {
         tripUpdate.removeStopTimeUpdate(i);
         i--;
       }

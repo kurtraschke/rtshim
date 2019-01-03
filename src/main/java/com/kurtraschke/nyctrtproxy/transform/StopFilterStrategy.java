@@ -1,6 +1,6 @@
 /*
- * Copyright (C) 2018 Cambridge Systematics, Inc.
- *
+ * Copyright (C) 2019 Cambridge Systematics, Inc.
+ * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
  * the License at
@@ -15,6 +15,6 @@
  */
 package com.kurtraschke.nyctrtproxy.transform;
 
-public interface StopIdTransformStrategy {
-    String transform(String route, String direction, String stop);
+public interface StopFilterStrategy {
+    boolean shouldInclude(String route, String stop);
 }
