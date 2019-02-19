@@ -16,11 +16,13 @@
 package com.kurtraschke.nyctrtproxy;
 
 import com.kurtraschke.nyctrtproxy.services.CloudwatchProxyDataListener;
+import com.kurtraschke.nyctrtproxy.services.GtfsDataServiceProvider;
 import com.kurtraschke.nyctrtproxy.services.LazyTripMatcher;
 import com.kurtraschke.nyctrtproxy.services.ProxyDataListener;
 import com.kurtraschke.nyctrtproxy.services.TripMatcher;
 import com.kurtraschke.nyctrtproxy.services.TripUpdateProcessor;
 import org.onebusaway.gtfs.model.calendar.CalendarServiceData;
+import org.onebusaway.gtfs.services.GtfsDataService;
 import org.onebusaway.gtfs.services.GtfsRelationalDao;
 import org.onebusaway.gtfs_realtime.exporter.GtfsRealtimeExporterModule;
 import org.onebusaway.guice.jsr250.JSR250Module;
@@ -59,12 +61,8 @@ public class ProxyModule extends AbstractModule {
     bind(ScheduledExecutorService.class)
             .toInstance(Executors.newSingleThreadScheduledExecutor());
 
-    bind(CalendarServiceData.class)
-            .toProvider(CalendarServiceDataProvider.class)
-            .in(Scopes.SINGLETON);
-
-    bind(GtfsRelationalDao.class)
-            .toProvider(GtfsRelationalDaoProvider.class)
+    bind(GtfsDataService.class)
+            .toProvider(GtfsDataServiceProvider.class)
             .in(Scopes.SINGLETON);
 
     bind(ProxyDataListener.class)

@@ -6,7 +6,7 @@ import com.kurtraschke.nyctrtproxy.model.DirectionEntry;
 import org.onebusaway.gtfs.model.Agency;
 import org.onebusaway.gtfs.model.AgencyAndId;
 import org.onebusaway.gtfs.model.Stop;
-import org.onebusaway.gtfs.services.GtfsRelationalDao;
+import org.onebusaway.gtfs.services.GtfsDataService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,15 +22,15 @@ public class DirectionsService {
 
     private static final Logger _log = LoggerFactory.getLogger(GtfsRelationalDaoProvider.class);
 
-    private GtfsRelationalDao _dao;
+    private GtfsDataService _gtfs;
 
     @Inject
     @Named("directions.csvPath")
     private String _directionsCsv;
 
-    @com.google.inject.Inject
-    public void setGtfsRelationalDao(GtfsRelationalDao dao) {
-        _dao = dao;
+    @Inject
+    public void setGtfsDataService(GtfsDataService gtfs) {
+        _gtfs = gtfs;
     }
 
     private Map<String, DirectionEntry> dirByStation = new HashMap<>();
@@ -76,9 +76,9 @@ public class DirectionsService {
     }
 
     private String getStationForStopId(String stopId){
-        for(Agency agency : _dao.getAllAgencies()){
+        for(Agency agency : _gtfs.getAllAgencies()){
             AgencyAndId stopAid = new AgencyAndId(agency.getId(), stopId);
-            Stop stop = _dao.getStopForId(stopAid);
+            Stop stop = _gtfs.getStopForId(stopAid);
             if(stop != null){
                 return stop.getParentStation();
             }

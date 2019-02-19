@@ -22,15 +22,12 @@ import com.kurtraschke.nyctrtproxy.model.ActivatedTrip;
 import com.kurtraschke.nyctrtproxy.model.NyctTripId;
 import com.kurtraschke.nyctrtproxy.model.Status;
 import com.kurtraschke.nyctrtproxy.model.TripMatchResult;
-import org.onebusaway.gtfs.impl.calendar.CalendarServiceDataFactoryImpl;
 import org.onebusaway.gtfs.model.AgencyAndId;
 import org.onebusaway.gtfs.model.Route;
 import org.onebusaway.gtfs.model.StopTime;
 import org.onebusaway.gtfs.model.Trip;
-import org.onebusaway.gtfs.model.calendar.CalendarServiceData;
 import org.onebusaway.gtfs.model.calendar.ServiceDate;
-import org.onebusaway.gtfs.services.GtfsRelationalDao;
-import org.onebusaway.gtfs.services.calendar.CalendarServiceDataFactory;
+import org.onebusaway.gtfs.services.GtfsDataService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,8 +52,7 @@ public class LazyTripMatcher implements TripMatcher {
 
   private int _lateTripLimitSec = 3600; // 1 hour
   private String _agencyId = "MTA NYCT";
-  private GtfsRelationalDao _dao;
-  private CalendarServiceData _csd;
+  private GtfsDataService _gtfs;
   private boolean _looseMatchDisabled = false;
   private boolean _allowServiceDayCoercion = true;
 
@@ -65,13 +61,8 @@ public class LazyTripMatcher implements TripMatcher {
   private Set<String> _mergableRoutes = Sets.newHashSet("D");
 
   @Inject
-  public void setGtfsRelationalDao(GtfsRelationalDao dao) {
-    _dao = dao;
-  }
-
-  @Inject
-  public void setCalendarServiceData(CalendarServiceData csd) {
-    _csd = csd;
+  public void setGtfsDataService(GtfsDataService gtfs) {
+    _gtfs = gtfs;
   }
   
   @Inject(optional = true)
@@ -128,12 +119,12 @@ public class LazyTripMatcher implements TripMatcher {
   private boolean addCandidates(GtfsRealtime.TripUpdateOrBuilder tu, NyctTripId id, ServiceDate sd, Set<TripMatchResult> candidates) {
 
     boolean found = false;
-    Route r = _dao.getRouteForId(new AgencyAndId(_agencyId, tu.getTrip().getRouteId()));
-    Set<AgencyAndId> serviceIds = _csd.getServiceIdsForDate(sd);
+    Route r = _gtfs.getRouteForId(new AgencyAndId(_agencyId, tu.getTrip().getRouteId()));
+    Set<AgencyAndId> serviceIds = _gtfs.getServiceIdsOnDate(sd);
 
     // We check through all trips. This could be easily restricted, but performance has not been a problem.
-    for (Trip trip : _dao.getTripsForRoute(r)) {
-      List<StopTime> stopTimes = _dao.getStopTimesForTrip(trip);
+    for (Trip trip : _gtfs.getTripsForRoute(r)) {
+      List<StopTime> stopTimes = _gtfs.getStopTimesForTrip(trip);
       if (stopTimes.isEmpty())
         continue;
       NyctTripId atid = NyctTripId.buildFromGtfs(trip, stopTimes);
