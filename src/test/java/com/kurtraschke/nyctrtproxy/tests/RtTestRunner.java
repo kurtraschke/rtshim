@@ -26,9 +26,8 @@ import com.google.protobuf.ExtensionRegistry;
 import com.google.transit.realtime.GtfsRealtime;
 import com.google.transit.realtime.GtfsRealtimeNYCT;
 import com.kurtraschke.nyctrtproxy.services.ActivatedTripMatcher;
-import com.kurtraschke.nyctrtproxy.services.CalendarServiceDataProvider;
 import com.kurtraschke.nyctrtproxy.services.CloudwatchProxyDataListener;
-import com.kurtraschke.nyctrtproxy.services.GtfsRelationalDaoProvider;
+import com.kurtraschke.nyctrtproxy.services.GtfsDataServiceProvider;
 import com.kurtraschke.nyctrtproxy.services.LazyTripMatcher;
 import com.kurtraschke.nyctrtproxy.services.ProxyDataListener;
 import com.kurtraschke.nyctrtproxy.services.TripActivator;
@@ -38,8 +37,7 @@ import junit.framework.TestCase;
 import org.junit.Before;
 import org.onebusaway.gtfs.model.AgencyAndId;
 import org.onebusaway.gtfs.model.Trip;
-import org.onebusaway.gtfs.model.calendar.CalendarServiceData;
-import org.onebusaway.gtfs.services.GtfsRelationalDao;
+import org.onebusaway.gtfs.services.GtfsDataService;
 
 import java.io.File;
 import java.io.IOException;
@@ -48,7 +46,7 @@ import java.io.InputStream;
 public abstract class RtTestRunner {
 
   @Inject
-  private GtfsRelationalDao _dao;
+  private GtfsDataService _dao;
 
   protected static ExtensionRegistry _extensionRegistry;
   protected String _agencyId = "MTA NYCT";
@@ -87,16 +85,12 @@ public abstract class RtTestRunner {
   protected static Module getTestModule(String gtfsPath, String agencyId, boolean cancelUnmatchedTrips) {
     return new AbstractModule() {
       @Override protected void configure() {
-        bind(CalendarServiceData.class)
-                .toProvider(CalendarServiceDataProvider.class)
-                .in(Scopes.SINGLETON);
-
         bind(File.class)
                 .annotatedWith(Names.named("NYCT.gtfsPath"))
                 .toInstance(new File(TestCase.class.getResource("/" + gtfsPath).getFile()));
 
-        bind(GtfsRelationalDao.class)
-                .toProvider(GtfsRelationalDaoProvider.class)
+        bind(GtfsDataService.class)
+                .toProvider(GtfsDataServiceProvider.class)
                 .in(Scopes.SINGLETON);
 
         CloudwatchProxyDataListener listener = new CloudwatchProxyDataListener();

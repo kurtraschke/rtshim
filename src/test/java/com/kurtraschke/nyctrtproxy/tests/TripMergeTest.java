@@ -24,7 +24,7 @@ import org.junit.Test;
 import org.onebusaway.gtfs.model.AgencyAndId;
 import org.onebusaway.gtfs.model.StopTime;
 import org.onebusaway.gtfs.model.Trip;
-import org.onebusaway.gtfs.services.GtfsRelationalDao;
+import org.onebusaway.gtfs.services.GtfsDataService;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -39,7 +39,7 @@ public class TripMergeTest extends RtTestRunner {
   private TripUpdateProcessor _processor;
 
   @Inject
-  private GtfsRelationalDao _dao;
+  private GtfsDataService _dao;
 
   @Test
   public void testMerging() throws Exception {
