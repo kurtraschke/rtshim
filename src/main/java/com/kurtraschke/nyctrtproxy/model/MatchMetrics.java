@@ -235,17 +235,21 @@ public class MatchMetrics {
     return nMergedTrips;
   }
 
-  private static MetricDatum metricCount(Date timestamp, String name, int value, Dimension dim) {
+  public static MetricDatum metricCount(Date timestamp, String name, int value, Dimension dim) {
+    return metricCount(timestamp, name, (double) value, dim);
+  }
+
+  public static MetricDatum metricCount(Date timestamp, String name, double value, Dimension dim) {
     MetricDatum d = new MetricDatum().withMetricName(name)
             .withTimestamp(timestamp)
-            .withValue((double) value)
+            .withValue(value)
             .withUnit(StandardUnit.Count);
     if (dim != null)
       d.withDimensions(dim);
     return d;
   }
 
-  private static MetricDatum metricPct(Date timestamp, String name, double value, Dimension dim) {
+  public static MetricDatum metricPct(Date timestamp, String name, double value, Dimension dim) {
     MetricDatum d = new MetricDatum().withMetricName(name)
             .withTimestamp(timestamp)
             .withValue(value * 100.0)

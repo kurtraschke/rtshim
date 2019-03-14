@@ -99,7 +99,7 @@ public class CloudwatchProxyDataListener implements ProxyDataListener {
     Dimension dim = new Dimension();
     dim.setName("route");
     dim.setValue(routeId);
-    if (!processReportSubwayMatches(timestamp, dim, metrics, namespace) && !_disabled)
+    if (!processReportSubwayMatches(timestamp, dim, metrics, namespace) && !isDisabled())
       _log.info("Cloudwatch: no data reported for route={}", routeId);
     _log.info("time={}, route={}, nMatchedTrips={}, nAddedTrips={}, nCancelledTrips={}, nDuplicates={}, nMergedTrips={}", timestamp, routeId, metrics.getMatchedTrips(), metrics.getAddedTrips(), metrics.getCancelledTrips(), metrics.getDuplicates(), metrics.getMergedTrips());
   }
@@ -110,7 +110,7 @@ public class CloudwatchProxyDataListener implements ProxyDataListener {
     Dimension dim = new Dimension();
     dim.setName("feed");
     dim.setValue(feedId);
-    if (!processReportSubwayMatches(timestamp, dim, metrics, namespace) && !_disabled)
+    if (!processReportSubwayMatches(timestamp, dim, metrics, namespace) && !isDisabled())
       _log.info("Cloudwatch: no data reported for feed={}", feedId);
     _log.info("time={}, feed={}, nMatchedTrips={}, nAddedTrips={}, nCancelledTrips={}, nDuplicates={}, nMergedTrips={}", timestamp, feedId, metrics.getMatchedTrips(), metrics.getAddedTrips(), metrics.getCancelledTrips(), metrics.getDuplicates(), metrics.getMergedTrips());
   }
@@ -121,7 +121,7 @@ public class CloudwatchProxyDataListener implements ProxyDataListener {
     Dimension dim = new Dimension();
     dim.setName("feed");
     dim.setValue(feedId);
-    if (!processReportTripUpdateMatches(timestamp, dim, metrics, namespace) && !_disabled)
+    if (!processReportTripUpdateMatches(timestamp, dim, metrics, namespace) && !isDisabled())
       _log.info("Cloudwatch: no data reported for feed={}", feedId);
     _log.info("time={}, feed={}, nMatchedTrips={}, nAddedTrips={}, nCancelledTrips={}", timestamp, feedId, metrics.getMatchedTrips(), metrics.getAddedTrips(), metrics.getCancelledTrips());
   }
@@ -129,13 +129,13 @@ public class CloudwatchProxyDataListener implements ProxyDataListener {
   @Override
   public void reportMatchesTotal(MatchMetrics metrics, String namespace) {
     Date timestamp = new Date();
-    if (!processReportSubwayMatches(timestamp, null, metrics, namespace) && !_disabled)
+    if (!processReportSubwayMatches(timestamp, null, metrics, namespace) && !isDisabled())
       _log.info("Cloudwatch: no data reported for total metrics.");
     _log.info("time={} total: nMatchedTrips={}, nAddedTrips={}, nCancelledTrips={}, nDuplicates={}, nMergedTrips={}", timestamp, metrics.getMatchedTrips(), metrics.getAddedTrips(), metrics.getCancelledTrips(), metrics.getDuplicates(), metrics.getMergedTrips());
   }
 
-  private boolean processReportTripUpdateMatches(Date timestamp, Dimension dim, MatchMetrics metrics, String namespace){
-    if (_disabled)
+  private boolean processReportTripUpdateMatches(Date timestamp, Dimension dim, MatchMetrics metrics, String namespace) {
+    if (isDisabled())
       return false;
 
     Set<MetricDatum> data = metrics.getMinimalReportedMetrics(dim, timestamp);
@@ -148,7 +148,7 @@ public class CloudwatchProxyDataListener implements ProxyDataListener {
   }
 
   private boolean processReportSubwayMatches(Date timestamp, Dimension dim, MatchMetrics metrics, String namespace) {
-    if (_disabled)
+    if (isDisabled())
       return false;
 
     Set<MetricDatum> data = metrics.getReportedMetrics(_verbose, dim, timestamp);
@@ -160,7 +160,8 @@ public class CloudwatchProxyDataListener implements ProxyDataListener {
     return true;
   }
 
-  private void publishMetric(String namespace, Set<MetricDatum> data){
+  @Override
+  public void publishMetric(String namespace, Set<MetricDatum> data) {
     PutMetricDataRequest request = new PutMetricDataRequest();
     request.setMetricData(data);
     if(namespace != null) {
@@ -187,5 +188,9 @@ public class CloudwatchProxyDataListener implements ProxyDataListener {
 
   public void setVerbose(boolean verbose) {
     _verbose = verbose;
+  }
+
+  public boolean isDisabled() {
+    return _disabled;
   }
 }
