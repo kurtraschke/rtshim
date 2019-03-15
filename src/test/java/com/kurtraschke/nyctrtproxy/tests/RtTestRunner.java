@@ -94,7 +94,6 @@ public abstract class RtTestRunner {
                 .in(Scopes.SINGLETON);
 
         CloudwatchProxyDataListener listener = new CloudwatchProxyDataListener();
-        listener.init();
         bind(ProxyDataListener.class)
                 .toInstance(listener);
 

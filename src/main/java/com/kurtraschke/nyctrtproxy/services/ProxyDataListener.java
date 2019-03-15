@@ -15,10 +15,7 @@
  */
 package com.kurtraschke.nyctrtproxy.services;
 
-import com.amazonaws.services.cloudwatch.model.MetricDatum;
 import com.kurtraschke.nyctrtproxy.model.MatchMetrics;
-
-import java.util.Set;
 
 /**
  * Listener for the results of TripUpdateProcessor.
@@ -28,7 +25,5 @@ import java.util.Set;
 public interface ProxyDataListener {
   void reportMatchesForRoute(String routeId, MatchMetrics metrics, String namespace);
   void reportMatchesForSubwayFeed(String feedId, MatchMetrics metrics, String namespace);
-  void reportMatchesForTripUpdateFeed(String feedId, MatchMetrics metrics, String namespace);
   void reportMatchesTotal(MatchMetrics metrics, String namespace);
-  void publishMetric(String namespace, Set<MetricDatum> data);
 }

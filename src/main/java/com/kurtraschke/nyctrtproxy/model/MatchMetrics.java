@@ -15,9 +15,6 @@
  */
 package com.kurtraschke.nyctrtproxy.model;
 
-import com.amazonaws.services.cloudwatch.model.Dimension;
-import com.amazonaws.services.cloudwatch.model.MetricDatum;
-import com.amazonaws.services.cloudwatch.model.StandardUnit;
 import com.google.common.collect.Sets;
 
 import java.util.Date;
@@ -121,100 +118,6 @@ public class MatchMetrics {
     nCancelledTrips++;
   }
 
-  /**
-   * Return a set of Cloudwatch metric data based on currently aggregated data.
-   *
-   * @param dim Dimension for the returned metrics (likely route or feed)
-   * @param timestamp Timestamp to use for returned metrics
-   * @return Set of Cloudwatch metrics
-   */
-  public Set<MetricDatum> getReportedMetrics(boolean verbose, Dimension dim, Date timestamp) {
-
-    Set<MetricDatum> data = Sets.newHashSet();
-    addLatencyMetrics(data, dim, timestamp);
-
-    if (nMatchedTrips + nAddedTrips > 0) {
-      data.addAll(verbose ? getMatchMetricsVerbose(dim, timestamp) : getMatchMetricsNonVerbose(dim, timestamp));
-    }
-
-    return data;
-  }
-
-  public Set<MetricDatum> getMinimalReportedMetrics(Dimension dim, Date timestamp) {
-
-    Set<MetricDatum> data = Sets.newHashSet();
-    addLatencyMetrics(data, dim, timestamp);
-
-    data.addAll(getMatchMetricsMinimal(dim, timestamp));
-
-    return data;
-  }
-
-  private void addLatencyMetrics(Set<MetricDatum> data, Dimension dim, Date timestamp){
-    if (latency >= 0) {
-      MetricDatum dLatency = new MetricDatum().withMetricName("Latency")
-              .withTimestamp(timestamp)
-              .withValue((double) latency)
-              .withUnit(StandardUnit.Seconds);
-      if (dim != null) {
-        dLatency = dLatency.withDimensions(dim);
-      }
-      data.add(dLatency);
-    }
-  }
-
-  private Set<MetricDatum> getMatchMetricsMinimal(Dimension dim, Date timestamp){
-    MetricDatum dRecordsIn = metricCount(timestamp, "RecordsIn", nRecordsIn, dim);
-    MetricDatum dAdded = metricCount(timestamp, "AddedTrips", nAddedTrips, dim);
-    MetricDatum dMatched = metricCount(timestamp, "MatchedTrips", nMatchedTrips, dim);
-    MetricDatum dRecordsOut = metricCount(timestamp, "RecordsOut", nMatchedTrips, dim);
-    return Sets.newHashSet(dRecordsIn, dMatched, dAdded, dRecordsOut);
-  }
-
-  private Set<MetricDatum> getMatchMetricsNonVerbose(Dimension dim, Date timestamp) {
-    MetricDatum dRecordsIn = metricCount(timestamp, "RecordsIn", nRecordsIn, dim);
-    MetricDatum dExpiredUpdates = metricCount(timestamp, "ExpiredUpdates", nExpiredUpdates, dim);
-    MetricDatum dMatched = metricCount(timestamp, "MatchedTrips", nMatchedTrips, dim);
-    MetricDatum dAdded = metricCount(timestamp, "AddedTrips", nAddedTrips, dim);
-    MetricDatum dCancelled = metricCount(timestamp, "CancelledTrips", nCancelledTrips, dim);
-    MetricDatum dMerged = metricCount(timestamp, "MergedTrips", nMergedTrips, dim);
-    MetricDatum dRecordsOut = metricCount(timestamp, "RecordsOut", nAddedTrips + nMatchedTrips + nCancelledTrips, dim);
-    return Sets.newHashSet(dRecordsIn, dExpiredUpdates, dMatched, dAdded, dCancelled, dMerged, dRecordsOut);
-  }
-
-  private Set<MetricDatum> getMatchMetricsVerbose(Dimension dim, Date timestamp) {
-    double nRt = nMatchedTrips + nAddedTrips;
-    double nMatchedRtPct = ((double) nMatchedTrips) / nRt;
-
-    double nUnmatchedWithoutStartDatePct = ((double) nUnmatchedNoStartDate) / nRt;
-    double nUnmatchedNoStopMatchPct = ((double) nUnmatchedNoStopMatch) / nRt;
-    double nStrictMatchPct = ((double) nStrictMatch) / nRt;
-    double nLooseMatchSameDayPct = ((double) nLooseMatchSameDay) / nRt;
-    double nLooseMatchOtherDayPct = ((double) nLooseMatchOtherDay) / nRt;
-    double nLooseMatchCoercionPct = ((double) nLooseMatchCoercion) / nRt;
-    double nMergedPct = ((double) nMergedTrips) / nRt;
-
-    MetricDatum dMatched = metricCount(timestamp, "MatchedTrips", nMatchedTrips, dim);
-    MetricDatum dAdded = metricCount(timestamp, "AddedTrips", nAddedTrips, dim);
-    MetricDatum dCancelled = metricCount(timestamp, "CancelledTrips", nCancelledTrips, dim);
-    MetricDatum dDuplicateTrips = metricCount(timestamp, "DuplicateTripMatches", nDuplicates, dim);
-    MetricDatum dBadId = metricCount(timestamp, "UnmatchedBadId", nBadId, dim);
-    MetricDatum dMerged = metricCount(timestamp, "MergedTrips", nMergedTrips, dim);
-
-    MetricDatum dMatchedRtPct = metricPct(timestamp, "MatchedRtTripsPct", nMatchedRtPct, dim);
-    MetricDatum dUnmatchedWithoutStartDatePct = metricPct(timestamp, "UnmatchedWithoutStartDatePct", nUnmatchedWithoutStartDatePct, dim);
-    MetricDatum dUnmatchedNoStopMatchPct = metricPct(timestamp, "UnmatchedNoStopMatchPct", nUnmatchedNoStopMatchPct, dim);
-    MetricDatum dStrictMatchPct = metricPct(timestamp, "StrictMatchPct", nStrictMatchPct, dim);
-    MetricDatum dLooseMatchSameDayPct = metricPct(timestamp, "LooseMatchSameDayPct", nLooseMatchSameDayPct, dim);
-    MetricDatum dLooseMatchOtherDayPct = metricPct(timestamp, "LooseMatchOtherDayPct", nLooseMatchOtherDayPct, dim);
-    MetricDatum dLooseMatchCoercionPct = metricPct(timestamp, "LooseMatchCoercionPct", nLooseMatchCoercionPct, dim);
-    MetricDatum dMergedPct = metricPct(timestamp, "MergedTripsPct", nMergedPct, dim);
-
-    return Sets.newHashSet(dMatched, dAdded, dCancelled, dMatchedRtPct, dUnmatchedWithoutStartDatePct,
-            dStrictMatchPct, dLooseMatchSameDayPct, dLooseMatchOtherDayPct, dUnmatchedNoStopMatchPct,
-            dLooseMatchCoercionPct, dDuplicateTrips, dBadId, dMerged, dMergedPct);
-  }
-
   public int getMatchedTrips() {
     return nMatchedTrips;
   }
@@ -235,27 +138,44 @@ public class MatchMetrics {
     return nMergedTrips;
   }
 
-  public static MetricDatum metricCount(Date timestamp, String name, int value, Dimension dim) {
-    return metricCount(timestamp, name, (double) value, dim);
+  public int getRecordsIn() {
+    return nRecordsIn;
   }
 
-  public static MetricDatum metricCount(Date timestamp, String name, double value, Dimension dim) {
-    MetricDatum d = new MetricDatum().withMetricName(name)
-            .withTimestamp(timestamp)
-            .withValue(value)
-            .withUnit(StandardUnit.Count);
-    if (dim != null)
-      d.withDimensions(dim);
-    return d;
+  public int getExpiredUpdates() {
+    return nExpiredUpdates;
   }
 
-  public static MetricDatum metricPct(Date timestamp, String name, double value, Dimension dim) {
-    MetricDatum d = new MetricDatum().withMetricName(name)
-            .withTimestamp(timestamp)
-            .withValue(value * 100.0)
-            .withUnit(StandardUnit.Percent);
-    if (dim != null)
-      d.withDimensions(dim);
-    return d;
+  public int getRecordsOut() {
+    return nAddedTrips + nMatchedTrips + nCancelledTrips;
   }
+
+  public int getUnmatchedNoStartDate() {
+    return nUnmatchedNoStartDate;
+  }
+
+  public int getUnmatchedNoStopMatch() {
+    return nUnmatchedNoStopMatch;
+  }
+
+  public int getStrictMatch() {
+    return nStrictMatch;
+  }
+
+  public int getLooseMatchSameDay() {
+    return nLooseMatchSameDay;
+  }
+
+  public int getLooseMatchOtherDay() {
+    return nLooseMatchOtherDay;
+  }
+
+  public int getLooseMatchCoercion() {
+    return nLooseMatchCoercion;
+  }
+
+  public int getBadId() {
+    return nBadId;
+  }
+
 }

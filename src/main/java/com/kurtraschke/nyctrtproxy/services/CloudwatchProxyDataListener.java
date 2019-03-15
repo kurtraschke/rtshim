@@ -15,24 +15,11 @@
  */
 package com.kurtraschke.nyctrtproxy.services;
 
-import com.amazonaws.auth.AWSStaticCredentialsProvider;
-import com.amazonaws.auth.BasicAWSCredentials;
-import com.amazonaws.handlers.AsyncHandler;
-import com.amazonaws.services.cloudwatch.AmazonCloudWatchAsync;
-import com.amazonaws.services.cloudwatch.AmazonCloudWatchAsyncClientBuilder;
-import com.amazonaws.services.cloudwatch.model.Dimension;
-import com.amazonaws.services.cloudwatch.model.MetricDatum;
-import com.amazonaws.services.cloudwatch.model.PutMetricDataRequest;
-import com.amazonaws.services.cloudwatch.model.PutMetricDataResult;
-import com.google.inject.Inject;
 import com.kurtraschke.nyctrtproxy.model.MatchMetrics;
+import org.onebusaway.cloud.api.ExternalServices;
+import org.onebusaway.cloud.api.ExternalServicesBridgeFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javax.annotation.PostConstruct;
-import javax.inject.Named;
-import java.util.Date;
-import java.util.Set;
 
 /**
  * Obtain metrics per-route and per-feed, and report to Cloudwatch.
@@ -44,150 +31,95 @@ import java.util.Set;
 public class CloudwatchProxyDataListener implements ProxyDataListener {
   private static final Logger _log = LoggerFactory.getLogger(CloudwatchProxyDataListener.class);
 
-  @Inject(optional = true)
-  @Named("cloudwatch.env")
-  protected String _env;
+  private boolean _disabled = false;
 
-  @Inject(optional = true)
-  @Named("cloudwatch.accessKey")
-  protected String _accessKey;
+  private boolean _verbose = false;
 
-  @Inject(optional = true)
-  @Named("cloudwatch.secretKey")
-  protected String _secretKey;
-
-  @Inject(optional = true)
-  @Named("cloudwatch.region")
-  protected String _region;
-
-  protected boolean _disabled = false;
-
-  protected boolean _verbose = false;
-
-  protected AmazonCloudWatchAsync _client;
-
-  protected AsyncHandler<PutMetricDataRequest, PutMetricDataResult> _handler;
-
-  @PostConstruct
-  public void init() {
-    if (_secretKey == null || _accessKey == null || _env == null || _region == null) {
-      _log.info("No AWS credentials supplied, disabling cloudwatch");
-      _disabled = true;
-      return;
-    }
-    BasicAWSCredentials cred = new BasicAWSCredentials(_accessKey, _secretKey);
-    _client = AmazonCloudWatchAsyncClientBuilder.standard()
-            .withCredentials(new AWSStaticCredentialsProvider(cred))
-            .withRegion(_region)
-            .build();
-    _handler = new AsyncHandler<PutMetricDataRequest, PutMetricDataResult>() {
-      @Override
-      public void onError(Exception e) {
-        _log.error("Error sending to cloudwatch: " + e);
-      }
-
-      @Override
-      public void onSuccess(PutMetricDataRequest request, PutMetricDataResult putMetricDataResult) {
-        // do nothing
-      }
-    };
-  }
+  private ExternalServices _externalServices = new ExternalServicesBridgeFactory().getExternalServices();
 
   @Override
   public void reportMatchesForRoute(String routeId, MatchMetrics metrics, String namespace) {
-    Date timestamp = new Date();
-    Dimension dim = new Dimension();
-    dim.setName("route");
-    dim.setValue(routeId);
-    if (!processReportSubwayMatches(timestamp, dim, metrics, namespace) && !isDisabled())
+    if (!reportMatches("route", routeId, metrics, namespace))
       _log.info("Cloudwatch: no data reported for route={}", routeId);
-    _log.info("time={}, route={}, nMatchedTrips={}, nAddedTrips={}, nCancelledTrips={}, nDuplicates={}, nMergedTrips={}", timestamp, routeId, metrics.getMatchedTrips(), metrics.getAddedTrips(), metrics.getCancelledTrips(), metrics.getDuplicates(), metrics.getMergedTrips());
+    _log.info("route={}, nMatchedTrips={}, nAddedTrips={}, nCancelledTrips={}, nDuplicates={}, nMergedTrips={}",routeId, metrics.getMatchedTrips(), metrics.getAddedTrips(), metrics.getCancelledTrips(), metrics.getDuplicates(), metrics.getMergedTrips());
   }
 
   @Override
   public void reportMatchesForSubwayFeed(String feedId, MatchMetrics metrics, String namespace) {
-    Date timestamp = new Date();
-    Dimension dim = new Dimension();
-    dim.setName("feed");
-    dim.setValue(feedId);
-    if (!processReportSubwayMatches(timestamp, dim, metrics, namespace) && !isDisabled())
+    if (!reportMatches("feed", feedId, metrics, namespace))
       _log.info("Cloudwatch: no data reported for feed={}", feedId);
-    _log.info("time={}, feed={}, nMatchedTrips={}, nAddedTrips={}, nCancelledTrips={}, nDuplicates={}, nMergedTrips={}", timestamp, feedId, metrics.getMatchedTrips(), metrics.getAddedTrips(), metrics.getCancelledTrips(), metrics.getDuplicates(), metrics.getMergedTrips());
-  }
-
-  @Override
-  public void reportMatchesForTripUpdateFeed(String feedId, MatchMetrics metrics, String namespace) {
-    Date timestamp = new Date();
-    Dimension dim = new Dimension();
-    dim.setName("feed");
-    dim.setValue(feedId);
-    if (!processReportTripUpdateMatches(timestamp, dim, metrics, namespace) && !isDisabled())
-      _log.info("Cloudwatch: no data reported for feed={}", feedId);
-    _log.info("time={}, feed={}, nMatchedTrips={}, nAddedTrips={}, nCancelledTrips={}", timestamp, feedId, metrics.getMatchedTrips(), metrics.getAddedTrips(), metrics.getCancelledTrips());
+    _log.info("feed={}, nMatchedTrips={}, nAddedTrips={}, nCancelledTrips={}, nDuplicates={}, nMergedTrips={}", feedId, metrics.getMatchedTrips(), metrics.getAddedTrips(), metrics.getCancelledTrips(), metrics.getDuplicates(), metrics.getMergedTrips());
   }
 
   @Override
   public void reportMatchesTotal(MatchMetrics metrics, String namespace) {
-    Date timestamp = new Date();
-    if (!processReportSubwayMatches(timestamp, null, metrics, namespace) && !isDisabled())
+    if (!reportMatches(null, null, metrics, namespace))
       _log.info("Cloudwatch: no data reported for total metrics.");
-    _log.info("time={} total: nMatchedTrips={}, nAddedTrips={}, nCancelledTrips={}, nDuplicates={}, nMergedTrips={}", timestamp, metrics.getMatchedTrips(), metrics.getAddedTrips(), metrics.getCancelledTrips(), metrics.getDuplicates(), metrics.getMergedTrips());
+    _log.info("total: nMatchedTrips={}, nAddedTrips={}, nCancelledTrips={}, nDuplicates={}, nMergedTrips={}", metrics.getMatchedTrips(), metrics.getAddedTrips(), metrics.getCancelledTrips(), metrics.getDuplicates(), metrics.getMergedTrips());
   }
 
-  private boolean processReportTripUpdateMatches(Date timestamp, Dimension dim, MatchMetrics metrics, String namespace) {
+
+  private boolean reportMatches(String dimensionName, String dimensionValue, MatchMetrics metrics, String namespace) {
     if (isDisabled())
       return false;
 
-    Set<MetricDatum> data = metrics.getMinimalReportedMetrics(dim, timestamp);
-    if (data.isEmpty())
-      return false;
-
-    publishMetric(namespace, data);
-
-    return true;
-  }
-
-  private boolean processReportSubwayMatches(Date timestamp, Dimension dim, MatchMetrics metrics, String namespace) {
-    if (isDisabled())
-      return false;
-
-    Set<MetricDatum> data = metrics.getReportedMetrics(_verbose, dim, timestamp);
-    if (data.isEmpty())
-      return false;
-
-    publishMetric(namespace, data);
-
-    return true;
-  }
-
-  @Override
-  public void publishMetric(String namespace, Set<MetricDatum> data) {
-    PutMetricDataRequest request = new PutMetricDataRequest();
-    request.setMetricData(data);
-    if(namespace != null) {
-      request.setNamespace(namespace + ":" + _env);
+    // report latency metric
+    if (metrics.getLatency() >= 0) {
+      publishMetric(namespace, "Latency", dimensionName, dimensionValue, metrics.getLatency());
     }
-    _client.putMetricDataAsync(request, _handler);
+
+    if (metrics.getMatchedTrips() + metrics.getAddedTrips() > 0) {
+
+      // non verbose
+      publishMetric(namespace, "RecordsIn", dimensionName, dimensionValue, metrics.getRecordsIn());
+      publishMetric(namespace, "ExpiredUpdates", dimensionName, dimensionValue, metrics.getExpiredUpdates());
+      publishMetric(namespace, "MatchedTrips", dimensionName, dimensionValue, metrics.getMatchedTrips());
+      publishMetric(namespace, "AddedTrips", dimensionName, dimensionValue, metrics.getAddedTrips());
+      publishMetric(namespace, "CancelledTrips", dimensionName, dimensionValue, metrics.getCancelledTrips());
+      publishMetric(namespace, "MergedTrips", dimensionName, dimensionValue, metrics.getMergedTrips());
+      publishMetric(namespace, "RecordsOut", dimensionName, dimensionValue, metrics.getRecordsOut());
+
+      if (_verbose) {
+        double nRt = metrics.getMatchedTrips() + metrics.getAddedTrips();
+        double nMatchedRtPct = ((double) metrics.getMatchedTrips()) / nRt;
+
+        double nUnmatchedWithoutStartDatePct = ((double) metrics.getUnmatchedNoStartDate()) / nRt;
+        double nUnmatchedNoStopMatchPct = ((double) metrics.getUnmatchedNoStopMatch()) / nRt;
+        double nStrictMatchPct = ((double) metrics.getStrictMatch()) / nRt;
+        double nLooseMatchSameDayPct = ((double) metrics.getLooseMatchSameDay()) / nRt;
+        double nLooseMatchOtherDayPct = ((double) metrics.getLooseMatchOtherDay()) / nRt;
+        double nLooseMatchCoercionPct = ((double) metrics.getLooseMatchCoercion()) / nRt;
+        double nMergedPct = ((double) metrics.getMergedTrips()) / nRt;
+
+        publishMetric(namespace, "DuplicateTripMatches", dimensionName, dimensionValue, metrics.getDuplicates());
+        publishMetric(namespace, "UnmatchedBadId", dimensionName, dimensionValue, metrics.getBadId());
+        publishMetric(namespace, "MatchedRtTripsPct", dimensionName, dimensionValue, nMatchedRtPct);
+        publishMetric(namespace, "UnmatchedWithoutStartDatePct", dimensionName, dimensionValue, nUnmatchedWithoutStartDatePct);
+        publishMetric(namespace, "UnmatchedNoStopMatchPct", dimensionName, dimensionValue, nUnmatchedNoStopMatchPct);
+        publishMetric(namespace, "StrictMatchPct", dimensionName, dimensionValue, nStrictMatchPct);
+        publishMetric(namespace, "LooseMatchSameDayPct", dimensionName, dimensionValue, nLooseMatchSameDayPct);
+        publishMetric(namespace, "LooseMatchOtherDayPct", dimensionName, dimensionValue, nLooseMatchOtherDayPct);
+        publishMetric(namespace, "LooseMatchCoercionPct", dimensionName, dimensionValue,  nLooseMatchCoercionPct);
+        publishMetric(namespace, "MergedTripsPct", dimensionName, dimensionValue, nMergedPct);
+
+      }
+    }
+
+    return true;
   }
 
-  public void setEnv(String env) {
-    _env = env;
-  }
-
-  public void setAccessKey(String accessKey) {
-    _accessKey = accessKey;
-  }
-
-  public void setSecretKey(String secretKey) {
-    _secretKey = secretKey;
-  }
-
-  public void setRegion(String region) {
-    _region = region;
+  void publishMetric(String namespace, String metricName, String dimensionName, String dimensionValue, double value) {
+    if (_externalServices.isInstancePrimary()) {
+      _externalServices.publishMetric(namespace, metricName, dimensionName, dimensionValue, value);
+    }
   }
 
   public void setVerbose(boolean verbose) {
     _verbose = verbose;
+  }
+
+  public void setDisabled(boolean disabled) {
+    _disabled = disabled;
   }
 
   public boolean isDisabled() {
