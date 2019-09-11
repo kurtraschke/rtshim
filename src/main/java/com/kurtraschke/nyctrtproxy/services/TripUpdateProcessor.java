@@ -64,7 +64,7 @@ public class TripUpdateProcessor {
   private Map<Integer, Map<String, String>> _realtimeToStaticRouteMapByFeed = ImmutableMap.of(1,
           ImmutableMap.of("S", "GS", "5X", "5"));
 
-  private Map<String, String> _addToTripReplacementPeriodByRoute = ImmutableMap.of("6", "6X");
+  private Map<String, String> _addToTripReplacementPeriodByRoute = ImmutableMap.of("6", "6X", "7", "7X", "F", "FX");
 
   private Set<String> _routesWithReverseRTDirections = Collections.emptySet();
 
