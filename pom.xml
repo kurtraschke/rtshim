@@ -111,9 +111,14 @@
       <version>1.2.10</version>
     </dependency>
     <dependency>
+      <groupId>org.onebusaway</groupId>
+      <artifactId>onebusaway-cloud-aws</artifactId>
+      <version>0.0.9-SNAPSHOT</version>
+    </dependency>
+    <dependency>
       <groupId>org.apache.httpcomponents</groupId>
       <artifactId>httpclient</artifactId>
-      <version>4.5.2</version>
+      <version>4.5.9</version>
     </dependency>
     <dependency>
       <groupId>org.onebusaway</groupId>
@@ -143,12 +148,12 @@
     <dependency>
       <groupId>org.onebusaway</groupId>
       <artifactId>onebusaway-cloud-api</artifactId>
-      <version>0.0.8</version>
+      <version>0.0.9-SNAPSHOT</version>
     </dependency>
     <dependency>
       <groupId>org.onebusaway</groupId>
       <artifactId>onebusaway-cloud-noop</artifactId>
-      <version>0.0.8</version>
+      <version>0.0.9-SNAPSHOT</version>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -210,11 +215,11 @@
               <mainClass>com.kurtraschke.nyctrtproxy.Main</mainClass>
             </manifest>
           </archive>
-          <resources>
-            <resource>
-              <directory>src/main/resources</directory>
-            </resource>
-          </resources>
+<!--          <resources>-->
+<!--            <resource>-->
+<!--              <directory>src/main/resources</directory>-->
+<!--            </resource>-->
+<!--          </resources>-->
         </configuration>
       </plugin>
 
