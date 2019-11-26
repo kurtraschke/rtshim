@@ -22,9 +22,6 @@ import com.google.inject.Inject;
 import com.kurtraschke.nyctrtproxy.model.MatchMetrics;
 import com.kurtraschke.nyctrtproxy.services.ProxyDataListener;
 import com.kurtraschke.nyctrtproxy.services.TripUpdateProcessor;
-import org.onebusaway.cloud.api.ExternalServices;
-import org.onebusaway.cloud.api.ExternalServicesBridgeFactory;
-import org.onebusaway.cloud.api.InputStreamConsumer;
 import org.onebusaway.gtfs_realtime.exporter.GtfsRealtimeFullUpdate;
 import org.onebusaway.gtfs_realtime.exporter.GtfsRealtimeGuiceBindingTypes.TripUpdates;
 import org.onebusaway.gtfs_realtime.exporter.GtfsRealtimeSink;
@@ -35,25 +32,13 @@ import com.google.transit.realtime.GtfsRealtime.FeedMessage;
 import com.google.transit.realtime.GtfsRealtime.TripUpdate;
 import com.google.transit.realtime.GtfsRealtimeNYCT;
 
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.conn.HttpClientConnectionManager;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClientBuilder;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Type;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -70,19 +55,11 @@ public class ProxyProvider {
 
   private static final org.slf4j.Logger _log = LoggerFactory.getLogger(ProxyProvider.class);
 
-  private static final String BASE_URL = "http://datamine.mta.info/mta_esi.php";
+  private FeedManager _feedManager;
 
   private static final ExtensionRegistry _extensionRegistry;
 
   private GtfsRealtimeSink _tripUpdatesSink;
-
-  private String _key;
-
-  private String _url = BASE_URL;
-
-  private HttpClientConnectionManager _connectionManager;
-
-  private CloseableHttpClient _httpClient;
 
   private ScheduledExecutorService _scheduledExecutorService;
 
@@ -98,46 +75,6 @@ public class ProxyProvider {
 
   private int _retryDelay = 5;
 
-  public void setBaseUrl(String url) {
-    _url = url;
-  }
-
-  private Map<String, String> _overrideFeedToUrlMap = new HashMap<>();
-  public java.util.Map<String, String> getOverrideFeedToUrlMap() {
-    return _overrideFeedToUrlMap;
-  }
-  public void setOverrideFeedToUrl(Map<String, String> kv) {
-    for (String key: kv.keySet()) {
-      _overrideFeedToUrlMap.put(key, kv.get(key));
-    }
-  }
-  private ExternalServices _es;
-  private ExternalServices getExternalServices() {
-    if (_es == null) {
-      _es = new ExternalServicesBridgeFactory().getExternalServices();
-    }
-    return _es;
-  }
-
-  private Map<String, String> _feedToProfileMap = new HashMap<>();
-  public Map<String, String> getFeedToProfileMap() {
-    return _feedToProfileMap;
-  }
-  public void setFeedToProfile(Map<String, String> kv) {
-    for (String key: kv.keySet()) {
-      _feedToProfileMap.put(key, kv.get(key));
-    }
-  }
-
-  private Map<String, String> _feedToRegionMap = new HashMap<>();
-  public Map<String, String> getFeedToRegionMap() {
-    return _feedToRegionMap;
-  }
-  public void setFeedToRegion(Map<String, String> kv) {
-    for (String key: kv.keySet()) {
-      _feedToRegionMap.put(key, kv.get(key));
-    }
-  }
 
   private List<Integer> _feedIds = Arrays.asList(1, 2, 11, 16, 21);
 
@@ -149,23 +86,23 @@ public class ProxyProvider {
   }
 
   @Inject
+  public void setFeedManager(FeedManager feedManager) {
+    _feedManager = feedManager;
+  }
+
+  @Inject
   public void setTripUpdatesSink(@TripUpdates GtfsRealtimeSink tripUpdatesSink) {
     _tripUpdatesSink = tripUpdatesSink;
   }
 
   @Inject
   public void setHttpClientConnectionManager(HttpClientConnectionManager connectionManager) {
-    _connectionManager = connectionManager;
+    _feedManager.setHttpClientConnectionManager(connectionManager);
   }
 
   @Inject
   public void setScheduledExecutorService(ScheduledExecutorService service) {
     _scheduledExecutorService = service;
-  }
-
-  @Inject
-  public void setKey(@Named("NYCT.key") String key) {
-    _key = key;
   }
 
   @Inject(optional = true)
@@ -201,7 +138,6 @@ public class ProxyProvider {
 
   @PostConstruct
   public void start() {
-    _httpClient = HttpClientBuilder.create().setConnectionManager(_connectionManager).build();
     if (_scheduledExecutorService != null)
       _updater = _scheduledExecutorService.scheduleWithFixedDelay(this::update, 0, _refreshRate, TimeUnit.SECONDS);
   }
@@ -212,11 +148,9 @@ public class ProxyProvider {
       _updater.cancel(false);
       _scheduledExecutorService.shutdown();
     }
-    _connectionManager.shutdown();
   }
 
   public void update() {
-    _log.info("doing update");
 
     GtfsRealtimeFullUpdate grfu = new GtfsRealtimeFullUpdate();
 
@@ -226,27 +160,19 @@ public class ProxyProvider {
 
     // For each feed ID, read in GTFS-RT, process trip updates, push to output.
     for (int feedId : _feedIds) {
-      URI feedUrl;
-
-      try {
-        feedUrl = getFeed(String.valueOf(feedId));
-        _log.info("using url |" + feedUrl + "| for feedId=" + feedId);
-
-      } catch (URISyntaxException ex) {
-        throw new RuntimeException(ex);
-      }
-
+      String feedUrl = _feedManager.getFeedOrDefault(String.valueOf(feedId));
       FeedMessage message = null;
       for (int tries = 0; tries < _nTries; tries++) {
         try {
 
-          try (InputStream streamContent = getStream(feedUrl, String.valueOf(feedId))) {
+          try (InputStream streamContent = _feedManager.getStream(feedUrl, String.valueOf(feedId))) {
            message = FeedMessage.parseFrom(streamContent, _extensionRegistry);
            if (!message.getEntityList().isEmpty())
             break;
            Thread.sleep(_retryDelay * 1000);
           }
         } catch (Exception e) {
+          _log.debug("broke", e);
           _log.error("Error parsing protocol buffer for feed={}. try={}, retry={}. Error={}",
                   feedId, tries, tries < _nTries, e.getMessage());
         }
@@ -275,44 +201,6 @@ public class ProxyProvider {
     if (_listener != null)
       _listener.reportMatchesTotal(totalMetrics, _processor.getCloudwatchNamespace());
   }
-  private InputStream getStream(URI feedUrl, String feedId) throws IOException {
-    if (feedUrl.getScheme().toLowerCase().startsWith("http")) {
-      HttpGet get = new HttpGet(feedUrl);
-      CloseableHttpResponse response = _httpClient.execute(get);
-      InputStream streamContent = response.getEntity().getContent();
-      return streamContent;
-    }
-    if (feedUrl.getScheme().toLowerCase().startsWith("s3")) {
-      ExternalServices es = getExternalServices();
-      ByteArrayOutputStream baos = new ByteArrayOutputStream();
-      es.getFileAsStream(feedUrl.toString(), new InputStreamConsumer() {
-        @Override
-        public void accept(InputStream inputStream) throws IOException {
-          byte[] buffer = new byte[1024];
-          int len;
-          while ((len = inputStream.read(buffer)) > -1 ) {
-            baos.write(buffer, 0, len);
-          }
-          baos.flush();
-        }
-      }, _feedToProfileMap.get(feedId),
-        _feedToRegionMap.get(feedId));
-      return new ByteArrayInputStream(baos.toByteArray());
-    }
-    throw new IllegalArgumentException("unexpected scheme " + feedUrl.getScheme() + " for url " + feedUrl);
 
-  }
-
-  private URI getFeed(String feedId) throws URISyntaxException {
-    String url = _overrideFeedToUrlMap.get(feedId);
-    if (url == null) {
-      URIBuilder ub = new URIBuilder(_url);
-      // use api key as param
-      ub.addParameter("key", _key);
-      ub.addParameter("feed_id", feedId);
-      return ub.build();
-    }
-    return new URIBuilder(url).build();
-  }
 
 }
