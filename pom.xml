@@ -3,7 +3,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.kurtraschke</groupId>
   <artifactId>nyct-rt-proxy</artifactId>
-  <version>1.0.13-SNAPSHOT</version>
+  <version>1.0.13</version>
   <packaging>jar</packaging>
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -113,7 +113,7 @@
     <dependency>
       <groupId>org.onebusaway</groupId>
       <artifactId>onebusaway-cloud-aws</artifactId>
-      <version>0.0.9-SNAPSHOT</version>
+      <version>0.0.9</version>
     </dependency>
     <dependency>
       <groupId>org.apache.httpcomponents</groupId>
@@ -148,12 +148,12 @@
     <dependency>
       <groupId>org.onebusaway</groupId>
       <artifactId>onebusaway-cloud-api</artifactId>
-      <version>0.0.9-SNAPSHOT</version>
+      <version>0.0.9</version>
     </dependency>
     <dependency>
       <groupId>org.onebusaway</groupId>
       <artifactId>onebusaway-cloud-noop</artifactId>
-      <version>0.0.9-SNAPSHOT</version>
+      <version>0.0.9</version>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -261,7 +261,7 @@
     <connection>scm:git:git@github.com:camsys/nyct-rt-proxy.git</connection>
     <developerConnection>scm:git:git@github.com:camsys/nyct-rt-proxy.git</developerConnection>
     <url>scm:git:git@github.com:camsys/nyct-rt-proxy</url>
-    <tag>HEAD</tag>
+    <tag>nyct-rt-proxy-1.0.13</tag>
   </scm>
 
   <issueManagement>
