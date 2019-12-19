@@ -113,7 +113,7 @@
     <dependency>
       <groupId>org.onebusaway</groupId>
       <artifactId>onebusaway-cloud-aws</artifactId>
-      <version>0.0.10-SNAPSHOT</version>
+      <version>0.0.10</version>
     </dependency>
     <dependency>
       <groupId>org.apache.httpcomponents</groupId>
@@ -148,12 +148,12 @@
     <dependency>
       <groupId>org.onebusaway</groupId>
       <artifactId>onebusaway-cloud-api</artifactId>
-      <version>0.0.10-SNAPSHOT</version>
+      <version>0.0.10</version>
     </dependency>
     <dependency>
       <groupId>org.onebusaway</groupId>
       <artifactId>onebusaway-cloud-noop</artifactId>
-      <version>0.0.10-SNAPSHOT</version>
+      <version>0.0.10</version>
       <scope>test</scope>
     </dependency>
     <dependency>
