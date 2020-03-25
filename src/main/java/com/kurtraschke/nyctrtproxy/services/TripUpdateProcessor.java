@@ -332,6 +332,10 @@ public class TripUpdateProcessor {
               // Trip Headsign and direction
               String stopId = result.getRtLastStop();
               String tripHeadsign = _tripActivator.getStopNameForId(stopId);
+              if (tub == null || tub.getTrip() == null || NyctTripId.buildFromTripDescriptor(tub.getTrip(), _routesWithReverseRTDirections) == null) {
+                _log.error("missing trip for headsign " + tripHeadsign);
+                continue;
+              }
               String nsDirection = NyctTripId.buildFromTripDescriptor(tub.getTrip(), _routesWithReverseRTDirections).getDirection();
               String tripDirection = "S".equals(nsDirection) ? "1" : "0";
               GtfsRealtimeOneBusAway.OneBusAwayTripUpdate.Builder obaTripUpdate =

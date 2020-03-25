@@ -31,6 +31,7 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.Set;
+import java.util.TimeZone;
 import java.util.stream.Stream;
 
 import com.google.inject.Inject;
@@ -66,7 +67,12 @@ public class TripActivator {
     for (ServiceDate sd : Arrays.asList(startDate.previous(), startDate, startDate.next())) {
         Set<AgencyAndId> serviceIdsForDate = _gtfs.getServiceIdsOnDate(sd);
 
-        int sdOrigin = (int) (sd.getAsCalendar(_gtfs.getTimeZoneForAgencyId(_agencyId)).getTimeInMillis() / 1000);
+        TimeZone agencyTimeZone = _gtfs.getTimeZoneForAgencyId(_agencyId);
+        if (agencyTimeZone == null) {
+            _log.error("missing tz for agency " + _agencyId);
+            agencyTimeZone = TimeZone.getDefault();
+        }
+        int sdOrigin = (int) (sd.getAsCalendar(agencyTimeZone).getTimeInMillis() / 1000);
 
         int startTime = (int) ((start.getTime() / 1000) - sdOrigin);
         int endTime = (int) ((end.getTime() / 1000) - sdOrigin);
