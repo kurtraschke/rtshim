@@ -309,6 +309,12 @@ public class TripUpdateProcessor {
           if (!result.getStatus().equals(Status.MERGED)) {
             GtfsRealtime.TripUpdate.Builder tub = result.getTripUpdateBuilder();
             GtfsRealtime.TripDescriptor.Builder tb = tub.getTripBuilder();
+            GtfsRealtimeNYCT.NyctTripDescriptor extension = tb.getExtension(GtfsRealtimeNYCT.nyctTripDescriptor);
+            if (extension != null && !extension.getIsAssigned() && dropUnassigned()) {
+              _log.error("dropping unassigned trip={}", result.getTripUpdate().getTrip().getTripId());
+              continue;
+            }
+
             if (result.hasResult() && (result.getTripUpdate().getStopTimeUpdateCount() == 0 || !result.stopsMatchToEnd())) {
               _log.info("no stop match rt={} static={} {}",
                       result.getTripUpdate().getTrip().getTripId(), result.getResult().getTrip().getId().getId(),
@@ -332,7 +338,9 @@ public class TripUpdateProcessor {
               // Trip Headsign and direction
               String stopId = result.getRtLastStop();
               String tripHeadsign = _tripActivator.getStopNameForId(stopId);
-              if (tub == null || tub.getTrip() == null || NyctTripId.buildFromTripDescriptor(tub.getTrip(), _routesWithReverseRTDirections) == null) {
+              NyctTripId nyctTripId = NyctTripId.buildFromTripDescriptor(tub.getTrip(), _routesWithReverseRTDirections);
+
+              if (tub == null || tub.getTrip() == null || nyctTripId == null) {
                 _log.error("missing trip for headsign " + tripHeadsign);
                 continue;
               }
@@ -392,6 +400,10 @@ public class TripUpdateProcessor {
 
     _log.info("feed={}, expired TUs={}", feedId, nExpiredTus);
     return ret;
+  }
+
+  private boolean dropUnassigned() {
+    return "true".equals(System.getProperty("tripUpdateProcess.dropUnassigned"));
   }
 
   // TU is *expired* if the latest arrival or departure is 5 minutes before feed's timestamp
