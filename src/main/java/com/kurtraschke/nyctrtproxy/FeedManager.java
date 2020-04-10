@@ -15,6 +15,7 @@
  */
 package com.kurtraschke.nyctrtproxy;
 
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.utils.URIBuilder;
@@ -46,6 +47,11 @@ public class FeedManager {
 
     private Credential _defaultCredential;
     private CloseableHttpClient _httpClient;
+    private int DEFAULT_TIME_OUT = 5000;
+    private int _timeout = DEFAULT_TIME_OUT;
+    public void setTimeout(int timeout) {
+        _timeout = timeout;
+    }
     private HttpClientConnectionManager _connectionManager;
     private static final String BASE_URL = "http://datamine.mta.info/mta_esi.php";
     private String _url = BASE_URL;
@@ -107,7 +113,16 @@ public class FeedManager {
             if (_connectionManager == null) {
                 throw new IllegalStateException("_connectionManager is null");
             }
-            _httpClient = HttpClientBuilder.create().setConnectionManager(_connectionManager).build();
+            // avoid stuck connections
+            RequestConfig requestConfig = RequestConfig.custom()
+                    .setSocketTimeout(_timeout)
+                    .setConnectTimeout(_timeout)
+                    .setConnectionRequestTimeout(_timeout)
+                    .setStaleConnectionCheckEnabled(true).build();
+            _httpClient = HttpClientBuilder.create()
+                    .setConnectionManager(_connectionManager)
+                    .setDefaultRequestConfig(requestConfig)
+                    .build();
         }
         return _httpClient;
     }
@@ -144,6 +159,7 @@ public class FeedManager {
         } else if (Credential.CredentialType.EXTERNAL_PROFILE.equals(credential.getType())) {
             ExternalServices es = getExternalServices();
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            _log.debug("getStream(S3)[" + feedUrl + ")");
             es.getFileAsStream(feedUrl.toString(), new InputStreamConsumer() {
                         @Override
                         public void accept(InputStream inputStream) throws IOException {
@@ -159,6 +175,7 @@ public class FeedManager {
             return new ByteArrayInputStream(baos.toByteArray());
         } else if (Credential.CredentialType.NO_OP.equals(credential.getType())) {
             HttpGet get = new HttpGet(feedUrl);
+            _log.debug("getStream[noop](" + feedUrl + ")");
             return getUrl(get);
         } else {
             throw new UnsupportedOperationException("unknown credential type " + credential.getType());
