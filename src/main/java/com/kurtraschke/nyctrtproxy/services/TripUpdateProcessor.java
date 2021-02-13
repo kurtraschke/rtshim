@@ -483,9 +483,12 @@ public class TripUpdateProcessor {
 
   private static String getReliefPoint(GtfsRealtime.TripUpdateOrBuilder update, int pt) {
     String trainId = update.getTrip().getExtension(GtfsRealtimeNYCT.nyctTripDescriptor).getTrainId();
-    String[] tokens = trainId.split(" ");
-    String relief = tokens[tokens.length - 1];
-    String[] points = relief.split("/");
+    NyctTrainId parsedTrainId = NyctTrainId.buildFromString(trainId);
+
+    if (parsedTrainId == null)
+      return null;
+
+    String[] points = new String[]{parsedTrainId.getOrigin(), parsedTrainId.getDestination()};
     if (pt >= points.length)
       return null;
     return points[pt];
