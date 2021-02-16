@@ -15,7 +15,10 @@
  */
 package com.kurtraschke.nyctrtproxy.model;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableList;
 import com.google.transit.realtime.GtfsRealtime;
+import com.google.transit.realtime.GtfsRealtimeNYCT;
 import org.apache.commons.lang3.StringUtils;
 import org.onebusaway.gtfs.model.StopTime;
 import org.onebusaway.gtfs.model.Trip;
@@ -38,7 +41,7 @@ import java.util.regex.Pattern;
 public class NyctTripId {
 
   private static final Pattern _rtTripPattern = Pattern.compile(
-          "([A-Z0-9]+_)?(?<originDepartureTime>[0-9-]{6})_?(?<route>[A-Z0-9]+)\\.+(?<direction>[NS])(?<network>[A-Z0-9]*)$");
+          "([A-Z0-9]+_)?(?<originDepartureTime>[0-9-]{6})_?(?<route>[A-Z0-9]+)\\.+(?<direction>[NS]?)(?<network>[A-Z0-9 -]*)$");
 
   private static final Pattern _staticTripPattern = Pattern.compile(
           "(?<route>[A-Z0-9]+)\\.+(?<direction>[NS])(?<network>[A-Z0-9]*)$"
@@ -90,6 +93,8 @@ public class NyctTripId {
       pathId = StringUtils.rightPad(matcher.group("route"), 3, '.') + matcher.group("direction");
       routeId = matcher.group("route");
       directionId = matcher.group("direction");
+      if (directionId.length() == 0)
+        directionId = null;
       networkId = matcher.group("network");
       if (networkId.length() == 0)
         networkId = null;
@@ -160,6 +165,9 @@ public class NyctTripId {
       if (td.hasRouteId()) {
         id.routeId = td.getRouteId();
       }
+      if (id.getDirection() == null && (id.getRouteId().equals("7") || id.getRouteId().equals("7X"))) {
+        id.directionId = inferFlushingDirection(td.getExtension(GtfsRealtimeNYCT.nyctTripDescriptor).getTrainId());
+      }
       if (reverseDirectionsRoutes.contains(id.routeId)) {
         id.directionId = id.directionId.equals("N") ? "S" : "N";
       }
@@ -225,4 +233,43 @@ public class NyctTripId {
     int time = originDepartureTime + (24 * 60 * 100);
     return new NyctTripId(time, pathId, routeId, directionId, networkId);
   }
+
+  /**
+   * The Flushing ATS generates path IDs from the RTIF short names of the origin and destination stops, truncated to
+   * fit within the path ID field. This results in either eight or nine characters being available for the stop names,
+   * depending on whether the route ID is "7" or "7X". In the worst case, an express trip departing from a stop whose
+   * RTIF short name is exactly eight characters long, there may be no room left for the destination stop name at all.
+   *
+   * Consequently, we instead attempt to infer direction of travel from the train ID, which is consistent with the
+   * standard format.
+   *
+   * @param trainId train ID in NYCT standard format
+   * @return direction of travel, "N" or "S"
+   */
+  @VisibleForTesting
+  static String inferFlushingDirection(String trainId) {
+    //Flushing Line stop abbreviations, ordered from north to south
+    List<String> flushingStopAbbreviations = ImmutableList.of("MST", "WPT", "111", "103", "JCT", "90S", "82S", "74S", "69S", "61S", "52S", "46B", "40S", "RAW", "QBP", "CHS", "HTR", "VER", "G-C", "5AV", "TSQ", "34H");
+
+    NyctTrainId parsedTrainId = NyctTrainId.buildFromString(trainId);
+
+    if (parsedTrainId == null) {
+      return null;
+    }
+
+    int originIndex = flushingStopAbbreviations.indexOf(parsedTrainId.getOrigin());
+    int destinationIndex = flushingStopAbbreviations.indexOf(parsedTrainId.getDestination());
+
+    if (originIndex == -1 || destinationIndex == -1 || originIndex == destinationIndex) {
+      return null;
+    }
+
+    if (originIndex > destinationIndex) {
+      return "N";
+    } else {
+      return "S";
+    }
+
+  }
+
 }
