@@ -18,6 +18,7 @@ package com.kurtraschke.nyctrtproxy;
 import com.google.inject.Inject;
 import com.google.transit.realtime.GtfsRealtime.Alert;
 import com.google.transit.realtime.GtfsRealtime.FeedEntity;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.conn.HttpClientConnectionManager;
@@ -45,6 +46,8 @@ import java.util.concurrent.TimeUnit;
 
 public class AlertsProvider {
 
+  private int DEFAULT_TIME_OUT = 5000;
+
   private Logger _log = LoggerFactory.getLogger(AlertsProvider.class);
 
   private HttpClientConnectionManager _connectionManager;
@@ -62,6 +65,8 @@ public class AlertsProvider {
   private int _refreshRate = 60;
 
   private SiriXmlSerializer _siriXmlSerializer;
+
+  private int _timeout = DEFAULT_TIME_OUT;
 
   @Inject
   public void setHttpClientConnectionManager(HttpClientConnectionManager connectionManager) {
@@ -93,10 +98,26 @@ public class AlertsProvider {
     _serviceAlertsUrl = url;
   }
 
+  @Inject(optional = true)
+  public void setTimeout(@Named("NYCT.serviceAlertsTimeout") int timeout) {
+    _timeout = timeout;
+  }
+
+
   @PostConstruct
   public void start() {
     if (_serviceAlertsUrl != null) {
-      _httpClient = HttpClientBuilder.create().setConnectionManager(_connectionManager).build();
+      // avoid stuck connections
+      RequestConfig requestConfig = RequestConfig.custom()
+              .setSocketTimeout(_timeout)
+              .setConnectTimeout(_timeout)
+              .setConnectionRequestTimeout(_timeout)
+              .setStaleConnectionCheckEnabled(true).build();
+
+      _httpClient = HttpClientBuilder.create()
+              .setConnectionManager(_connectionManager)
+              .setDefaultRequestConfig(requestConfig)
+              .build();
       if (_scheduledExecutorService != null)
        _updater = _scheduledExecutorService.scheduleWithFixedDelay(this::update, 0, _refreshRate, TimeUnit.SECONDS);
     }
