@@ -21,6 +21,7 @@ import com.google.transit.realtime.GtfsRealtime.FeedEntity;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
+import org.apache.http.config.SocketConfig;
 import org.apache.http.conn.HttpClientConnectionManager;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
@@ -113,10 +114,11 @@ public class AlertsProvider {
               .setConnectTimeout(_timeout)
               .setConnectionRequestTimeout(_timeout)
               .setStaleConnectionCheckEnabled(true).build();
-
+      SocketConfig socketConfig = SocketConfig.custom().setSoTimeout(_timeout).build();
       _httpClient = HttpClientBuilder.create()
               .setConnectionManager(_connectionManager)
               .setDefaultRequestConfig(requestConfig)
+              .setDefaultSocketConfig(socketConfig)
               .build();
       if (_scheduledExecutorService != null)
        _updater = _scheduledExecutorService.scheduleWithFixedDelay(this::update, 0, _refreshRate, TimeUnit.SECONDS);
