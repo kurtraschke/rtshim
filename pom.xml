@@ -75,6 +75,10 @@
           <artifactId>onebusaway-container</artifactId>
         </exclusion>
         <exclusion>
+          <groupId>org.onebusaway</groupId>
+          <artifactId>onebusaway-collections</artifactId>
+        </exclusion>
+        <exclusion>
           <groupId>com.thoughtworks.xstream</groupId>
           <artifactId>xstream</artifactId>
         </exclusion>
