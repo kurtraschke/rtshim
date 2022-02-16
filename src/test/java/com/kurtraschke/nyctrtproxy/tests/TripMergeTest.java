@@ -16,9 +16,13 @@
 package com.kurtraschke.nyctrtproxy.tests;
 
 import com.google.inject.Inject;
+import com.google.transit.realtime.GtfsRealtime;
 import com.google.transit.realtime.GtfsRealtime.*;
+import com.google.transit.realtime.GtfsRealtimeNYCT;
 import com.kurtraschke.nyctrtproxy.model.MatchMetrics;
+import com.kurtraschke.nyctrtproxy.model.NyctTrainId;
 import com.kurtraschke.nyctrtproxy.model.NyctTripId;
+import com.kurtraschke.nyctrtproxy.model.TripMatchResult;
 import com.kurtraschke.nyctrtproxy.services.TripUpdateProcessor;
 import org.junit.Test;
 import org.onebusaway.gtfs.model.AgencyAndId;
@@ -84,4 +88,94 @@ public class TripMergeTest extends RtTestRunner {
               return id.getRouteId().equals(routeId) && id.getDirection().equals(direction) && id.getOriginDepartureTime() == odtime;
             }).collect(Collectors.toList());
   }
+
+  @Test
+  public void mergedResultTest(){
+    String tripId1 = "098650_D..S";
+    String trainId1 = "1D 1102 STL/205";
+    long arrivalTime1 = 1645051560000l; // Wednesday, February 16, 2022 5:46:00 PM GMT-05:00
+    long departureTime1 = 1645051620000l; //Wednesday, February 16, 2022 5:47:00 PM GMT-05:00
+
+    List<ArrivalDeparturePair> arrivalDeparturePairs1 = new ArrayList<>(1);
+    arrivalDeparturePairs1.add(new ArrivalDeparturePair(arrivalTime1, departureTime1));
+
+    TripMatchResult tripMatchResult1 = getTripMatchResult(tripId1, trainId1, arrivalDeparturePairs1);
+
+    String tripId2 =  "099050_D..S";
+    String trainId2 = "1D 1105 205/TST";
+    long arrivalTime2 = 1645051620000l; //Wednesday, February 16, 2022 5:47:00 PM GMT-05:00
+    long departureTime2 = 1645051680000l; //Wednesday, February 16, 2022 5:48:00 PM GMT-05:00
+    long arrivalTime3 = 1645051740000l; // Wednesday, February 16, 2022 5:49:00 PM GMT-05:00
+    long departureTime3 = 1645051800000l; // Wednesday, February 16, 2022 5:50:00 PM GMT-05:00
+
+    List<ArrivalDeparturePair> arrivalDeparturePairs2 = new ArrayList<>(2);
+    arrivalDeparturePairs2.add(new ArrivalDeparturePair(arrivalTime2, departureTime2));
+    arrivalDeparturePairs2.add(new ArrivalDeparturePair(arrivalTime3, departureTime3));
+
+    TripMatchResult tripMatchResult2 = getTripMatchResult(tripId2, trainId2, arrivalDeparturePairs2);
+
+    TripUpdateProcessor tripUpdateProcessor = new TripUpdateProcessor();
+    TripMatchResult result = tripUpdateProcessor.mergedResult(tripMatchResult1, tripMatchResult2);
+
+    assertNotNull(result);
+
+    result = tripUpdateProcessor.mergedResult(getTripMatchResult(tripId1, trainId1, Collections.EMPTY_LIST), tripMatchResult2);
+    assertEquals(tripId1, result.getTripId());
+
+    result = tripUpdateProcessor.mergedResult(tripMatchResult1, getTripMatchResult(tripId2, trainId2, Collections.EMPTY_LIST));
+    assertEquals(tripId1, result.getTripId());
+
+  }
+
+
+
+  private TripMatchResult getTripMatchResult(String tripId, String trainId, List<ArrivalDeparturePair> arrivalDeparturePairs) {
+    GtfsRealtime.TripUpdate.Builder tripUpdateBuilder = GtfsRealtime.TripUpdate.newBuilder();
+
+    for (ArrivalDeparturePair adPair : arrivalDeparturePairs){
+      GtfsRealtime.TripUpdate.StopTimeEvent.Builder arrivalTimeBuilder = GtfsRealtime.TripUpdate.StopTimeEvent.newBuilder();
+      arrivalTimeBuilder.setTime(adPair.getArrivalTime());
+
+      GtfsRealtime.TripUpdate.StopTimeEvent.Builder departureTimeBuilder = GtfsRealtime.TripUpdate.StopTimeEvent.newBuilder();
+      departureTimeBuilder.setTime(adPair.getDepartureTime());
+
+      GtfsRealtime.TripUpdate.StopTimeUpdate.Builder stopTimeUpdateBuilder = GtfsRealtime.TripUpdate.StopTimeUpdate.newBuilder();
+      stopTimeUpdateBuilder.setArrival(arrivalTimeBuilder.build());
+      stopTimeUpdateBuilder.setDeparture(departureTimeBuilder.build());
+      TripUpdate.StopTimeUpdate stopTimeUpdate = stopTimeUpdateBuilder.build();
+
+      tripUpdateBuilder.addStopTimeUpdate(stopTimeUpdate);
+
+    }
+
+    GtfsRealtime.TripDescriptor.Builder tripDescriptorBuilder = GtfsRealtime.TripDescriptor.newBuilder();
+    tripDescriptorBuilder.setTripId(tripId)
+            .setExtension(GtfsRealtimeNYCT.nyctTripDescriptor,
+                    GtfsRealtimeNYCT.NyctTripDescriptor.newBuilder().setTrainId(trainId).build());
+    TripDescriptor tripDescriptor = tripDescriptorBuilder.build();
+
+    tripUpdateBuilder.setTrip(tripDescriptor);
+
+    TripUpdate tripUpdate = tripUpdateBuilder.build();
+
+    return new TripMatchResult(tripUpdate, null, null, 0);
+  }
+
+   private class ArrivalDeparturePair {
+    long arrivalTime;
+    long departureTime;
+    public ArrivalDeparturePair(long arrivalTime, long departurTime){
+      this.arrivalTime = arrivalTime;
+      this.departureTime = departurTime;
+    }
+
+     public long getArrivalTime() {
+       return arrivalTime;
+     }
+
+     public long getDepartureTime(){
+      return departureTime;
+     }
+   }
+
 }

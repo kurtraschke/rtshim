@@ -455,32 +455,74 @@ public class TripUpdateProcessor {
     return mergedResult(iter.next(), iter.next()) != null;
   }
 
-  private TripMatchResult mergedResult(TripMatchResult first, TripMatchResult second) {
+  public TripMatchResult mergedResult(TripMatchResult first, TripMatchResult second) {
     NyctTripId firstId = NyctTripId.buildFromTripDescriptor(first.getTripUpdate().getTrip(), _routesWithReverseRTDirections);
     NyctTripId secondId = NyctTripId.buildFromTripDescriptor(second.getTripUpdate().getTrip(), _routesWithReverseRTDirections);
     if (firstId.getOriginDepartureTime() > secondId.getOriginDepartureTime())
       return mergedResult(second, first);
 
+    // Relief Point checks to see if the destination of the first trip matches the origin of the second trip
+
+    // Destination first trip
     String midpt0 = getReliefPoint(first.getTripUpdate(), 1);
+
+    // Origin second trip
     String midpt1 = getReliefPoint(second.getTripUpdate(), 0);
+
+    // Destination and Origin match so must be part of the same trip update
     if (midpt0 != null && midpt0.equals(midpt1)) {
-      Iterator<StopTimeUpdate.Builder> stusToAdd = second.getTripUpdateBuilder().getStopTimeUpdateBuilderList().iterator();
-      GtfsRealtime.TripUpdate.Builder update = first.getTripUpdateBuilder();
-      StopTimeUpdate.Builder stu1 = stusToAdd.next();
-      StopTimeUpdate.Builder stu0 = update.getStopTimeUpdateBuilder(update.getStopTimeUpdateCount() - 1);
-      if (stu1.getStopId().equals(stu0.getStopId())) {
-        stu0.setDeparture(stu1.getDeparture());
-        while (stusToAdd.hasNext()) {
-          update.addStopTimeUpdate(stusToAdd.next());
+
+      // First trip updates
+      GtfsRealtime.TripUpdate.Builder firstTripUpdate = first.getTripUpdateBuilder();
+
+      // Second trip updates
+      GtfsRealtime.TripUpdate.Builder secondTripUpdate = second.getTripUpdateBuilder();
+
+
+      int firstTripStopTimesCount = firstTripUpdate.getStopTimeUpdateCount();
+      int secondTripStopTimesCount = secondTripUpdate.getStopTimeUpdateCount();
+
+
+      // Check to make sure both trips have stop time updates
+      if(firstTripStopTimesCount <= 0 && secondTripStopTimesCount <= 0){
+        return null;
+      }
+      else if(secondTripStopTimesCount <= 0){
+        return first;
+      }
+
+      Iterator<StopTimeUpdate.Builder> secondTripStusToAdd = secondTripUpdate.getStopTimeUpdateBuilderList().iterator();
+
+      // last stop time update for first trip
+      StopTimeUpdate.Builder firstTripLastStopTimeUpdate = null;
+      if(firstTripStopTimesCount > 0){
+        firstTripLastStopTimeUpdate = firstTripUpdate.getStopTimeUpdateBuilder(firstTripStopTimesCount - 1);
+      }
+
+      // first stop time update for second trip
+      StopTimeUpdate.Builder secondTripFirstStopTimeUpdate = secondTripStusToAdd.next();
+
+      // Handles 2 Cases:
+      // 1) If first trip has no stop times then all second trip stop times are merged into first trip
+      // 2) If last stop of first trip and first stop of second trip are same then all second trip stop times are merged
+      // into first trip
+      if(firstTripLastStopTimeUpdate == null || secondTripFirstStopTimeUpdate.getStopId().equals(firstTripLastStopTimeUpdate.getStopId())){
+        if(firstTripLastStopTimeUpdate != null){
+          firstTripLastStopTimeUpdate.setDeparture(secondTripFirstStopTimeUpdate.getDeparture());
+        }
+        while (secondTripStusToAdd.hasNext()) {
+          firstTripUpdate.addStopTimeUpdate(secondTripStusToAdd.next());
         }
         second.setStatus(Status.MERGED);
         return first;
       }
     }
-
     return null;
   }
 
+   /**
+    * Checks if last stop of first trip and first stop of second trip are same if stops match then trips are merged
+    */
   private static String getReliefPoint(GtfsRealtime.TripUpdateOrBuilder update, int pt) {
     String trainId = update.getTrip().getExtension(GtfsRealtimeNYCT.nyctTripDescriptor).getTrainId();
     NyctTrainId parsedTrainId = NyctTrainId.buildFromString(trainId);
