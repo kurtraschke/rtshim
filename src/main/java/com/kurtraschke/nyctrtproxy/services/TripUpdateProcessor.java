@@ -478,38 +478,26 @@ public class TripUpdateProcessor {
       // Second trip updates
       GtfsRealtime.TripUpdate.Builder secondTripUpdate = second.getTripUpdateBuilder();
 
-
       int firstTripStopTimesCount = firstTripUpdate.getStopTimeUpdateCount();
       int secondTripStopTimesCount = secondTripUpdate.getStopTimeUpdateCount();
 
-
       // Check to make sure both trips have stop time updates
-      if(firstTripStopTimesCount <= 0 && secondTripStopTimesCount <= 0){
+      if(firstTripStopTimesCount <= 0 || secondTripStopTimesCount <= 0){
         return null;
-      }
-      else if(secondTripStopTimesCount <= 0){
-        return first;
       }
 
       Iterator<StopTimeUpdate.Builder> secondTripStusToAdd = secondTripUpdate.getStopTimeUpdateBuilderList().iterator();
 
       // last stop time update for first trip
-      StopTimeUpdate.Builder firstTripLastStopTimeUpdate = null;
-      if(firstTripStopTimesCount > 0){
-        firstTripLastStopTimeUpdate = firstTripUpdate.getStopTimeUpdateBuilder(firstTripStopTimesCount - 1);
-      }
+      StopTimeUpdate.Builder firstTripLastStopTimeUpdate =  firstTripUpdate.getStopTimeUpdateBuilder(firstTripStopTimesCount - 1);;
 
       // first stop time update for second trip
       StopTimeUpdate.Builder secondTripFirstStopTimeUpdate = secondTripStusToAdd.next();
 
-      // Handles 2 Cases:
-      // 1) If first trip has no stop times then all second trip stop times are merged into first trip
-      // 2) If last stop of first trip and first stop of second trip are same then all second trip stop times are merged
+      //If last stop of first trip and first stop of second trip are same then all second trip stop times are merged
       // into first trip
-      if(firstTripLastStopTimeUpdate == null || secondTripFirstStopTimeUpdate.getStopId().equals(firstTripLastStopTimeUpdate.getStopId())){
-        if(firstTripLastStopTimeUpdate != null){
-          firstTripLastStopTimeUpdate.setDeparture(secondTripFirstStopTimeUpdate.getDeparture());
-        }
+      if(secondTripFirstStopTimeUpdate.getStopId().equals(firstTripLastStopTimeUpdate.getStopId())){
+        firstTripLastStopTimeUpdate.setDeparture(secondTripFirstStopTimeUpdate.getDeparture());
         while (secondTripStusToAdd.hasNext()) {
           firstTripUpdate.addStopTimeUpdate(secondTripStusToAdd.next());
         }

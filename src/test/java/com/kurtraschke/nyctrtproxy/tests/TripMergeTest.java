@@ -120,10 +120,10 @@ public class TripMergeTest extends RtTestRunner {
     assertNotNull(result);
 
     result = tripUpdateProcessor.mergedResult(getTripMatchResult(tripId1, trainId1, Collections.EMPTY_LIST), tripMatchResult2);
-    assertEquals(tripId1, result.getTripId());
+    assertNull(result);
 
     result = tripUpdateProcessor.mergedResult(tripMatchResult1, getTripMatchResult(tripId2, trainId2, Collections.EMPTY_LIST));
-    assertEquals(tripId1, result.getTripId());
+    assertNull(result);
 
   }
 
