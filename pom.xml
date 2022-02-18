@@ -125,7 +125,7 @@
     <dependency>
       <groupId>org.onebusaway</groupId>
       <artifactId>onebusaway-gtfs-realtime-api</artifactId>
-      <version>1.2.25</version>
+      <version>1.2.26</version>
     </dependency>
     <dependency>
       <groupId>org.onebusaway</groupId>
